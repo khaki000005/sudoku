@@ -1,5 +1,6 @@
-import random
+
 import math
+import numpy as np
 
 
 def generate(n):
@@ -13,11 +14,10 @@ def generate(n):
 
     Returns:
         []: list that holds sudoku table ([[]*n]*n)
-    """    
+    """
     if n < 2:
         raise Exception("dimension must be bigger than one!")
-    table = [[0 for x in range(n**2)]
-             for y in range(n**2)]
+    table = np.zeros((n**2, n**2), dtype=np.uint32)
     solve(table)
     return table
 
@@ -27,15 +27,16 @@ def show(table):
 
     Args:
         table (list): list that holds sudoku table
-    """    
-    n = int(math.sqrt(len(table)))
-    for x, xe in enumerate(table):
-        if x % n == 0:
+    """
+    n = table.shape[0]
+    nsq = int(math.sqrt(n))
+    for x in range(n):
+        if x % nsq == 0:
             print()
-        for y, ye in enumerate(xe):
-            if y % n == 0:
+        for y in range(n):
+            if y % nsq == 0:
                 print(end="  ")
-            print("{ye:3d}".format(ye=ye), end=" ")
+            print("{ye:3d}".format(ye=table[x, y]), end=" ")
         print()
 
 
@@ -51,7 +52,7 @@ def puzzle(table, difficulty=50):
 
     Returns:
         list: sudoku puzzle table
-    """    
+    """
     n = int(math.sqrt(len(table)))
     puzzle_table = table.copy()
     if(difficulty > 80 and difficulty < 20):
@@ -74,7 +75,7 @@ def check(table):
 
     Returns:
         Boolean: True if table is an acceptable answer
-    """    
+    """
     n = int(math.sqrt(len(table)))
     acc_ans = set([k for k in range(1, n**2+1)])
     for row in table:
@@ -111,26 +112,25 @@ def solve(table, row=0, col=0):
         row (int, optional): Defaults to 0.
         col (int, optional): Defaults to 0.
 
-    """    
-    n = int(math.sqrt(len(table)))
-    if col >= n**2:
+    """
+    n = table.shape[0]
+    if col >= n:
         row += 1
         col = 0
-    if row >= n**2:
+    if row >= n:
         return True
-    value = table[row][col]
-    if table[row][col] == 0:
+    value = table[row, col]
+    if table[row, col] == 0:
         possible_ans = possible_answers(table, row, col)
     else:
-        possible_ans = set([table[row][col]])
-    possible_ans = list(possible_ans)
-    random.shuffle(possible_ans)
+        possible_ans = np.unique([table[row, col]])
+    np.random.shuffle(possible_ans)
     for ans in possible_ans:
-        table[row][col] = ans
+        table[row, col] = ans
         if solve(table, row, col+1):
             return True
         else:
-            table[row][col] = value
+            table[row, col] = value
 
 
 def possible_answers(table, row, col):
@@ -143,16 +143,18 @@ def possible_answers(table, row, col):
 
     Returns:
         set: set of possible answers
-    """    
-    n = int(math.sqrt(len(table)))
-    row_vals = set(table[row])
-    col_vals = set([rows[col] for rows in table])
+    """
+    n = table.shape[0]
+    n = int(math.sqrt(n))
+    row_vals = np.unique(table[row])
+    col_vals = np.unique(table[:, col])
     squ_row = row // n
     squ_col = col // n
-    squ_vals = set()
-    for rows in table[squ_row*n:squ_row*n+n]:
-        for elem in rows[squ_col*n:squ_col*n+n]:
-            squ_vals.add(elem)
-    possible_ans = set([ans for ans in range(1, n**2+1)])
-    possible_ans = possible_ans - squ_vals - col_vals - row_vals
+    squ_vals = np.unique(table[squ_row*n:squ_row*n+n,
+                               squ_col*n:squ_col*n+n].flatten())
+
+    possible_ans = np.unique(np.arange(1, n**2 + 1))
+    possible_ans = np.setdiff1d(possible_ans, squ_vals, assume_unique=True)
+    possible_ans = np.setdiff1d(possible_ans, col_vals, assume_unique=True)
+    possible_ans = np.setdiff1d(possible_ans, row_vals, assume_unique=True)
     return possible_ans
